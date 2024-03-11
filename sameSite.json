@@ -1,0 +1,16 @@
+[
+  {"name": "personalization_id", "sameSite": "None"},
+  {"name": "twid", "sameSite": "None"},
+  {"name": "ct0", "sameSite": "Lax"},
+  {"name": "auth_token", "sameSite": "None"},
+  {"name": "guest_id_marketing", "sameSite": "None"},
+  {"name": "_ga", "sameSite": "Lax"},
+  {"name": "att", "sameSite": "None"},
+  {"name": "_gid", "sameSite": "Lax"},
+  {"name": "guest_id_ads", "sameSite": "None"},
+  {"name": "_twitter_sess", "sameSite": "Lax"},
+  {"name": "kdt", "sameSite": "Lax"},
+  {"name": "lang", "sameSite": "Lax"},
+  {"name": "gt", "sameSite": "Lax"},
+  {"name": "guest_id", "sameSite": "None"}
+]
