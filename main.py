@@ -15,7 +15,7 @@ def hello_world():
 
 app.add_url_rule('/', 'index', hello_world)
 app.add_url_rule('/test', 'test', test_driver)
-app.add_url_rule('/get_chats/<account_id>', 'get_chats', get_chats)
+# app.add_url_rule('/get_chats/<account_id>', 'get_chats', get_chats)
 app.add_url_rule('/auth/<account_id>', 'auth', auth)
 app.add_url_rule('/auth_and_restart_proces/<account_id>', 'auth_and_restart_proces', auth_and_restart_proces)
 

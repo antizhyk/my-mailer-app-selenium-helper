@@ -1,11 +1,14 @@
 import time
 import traceback
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Manager
 from bson import ObjectId
 import requests
+from selenium.common import WebDriverException
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
-
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import capsolver
 from db import db
 from selenium_logic import create_driver
 
@@ -17,7 +20,7 @@ def get_2fa_code(secret):
     return token
 
 
-def auth_process(queue, account_id):
+def auth_process(shared_dict, account_id):
     driver = None
     try:
         account = db['accounts'].find_one({'_id': ObjectId(account_id)})
@@ -34,18 +37,27 @@ def auth_process(queue, account_id):
 
         login = account['loginOrPhone']
         password = account['password']
+
         driver = create_driver(proxy_url, agent)
         driver.get("https://twitter.com/i/flow/login")
+        # # driver.wait(until.elementLocated(By.css('selector-for-funcaptcha')), 10000);
+        # WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'selector-for-funcaptcha')))
+        # # driver.findElement(By.css('selector-for-funcaptcha')).click();
+        # driver.find_element(By.CSS_SELECTOR, 'selector-for-funcaptcha').click()
         print("Opened Twitter")
         time.sleep(30)
         input_login = driver.find_element(By.XPATH, '//input[@type="text"]')
-        input_login.send_keys(login)
+        for char in login:
+            input_login.send_keys(char)
+            time.sleep(0.1)
         time.sleep(1)
         input_login.send_keys(Keys.ENTER)
         time.sleep(3)
         print("Entered login successfully")
         input_password = driver.find_element(By.XPATH, '//input[@name="password"]')
-        input_password.send_keys(password)
+        for char in password:
+            input_password.send_keys(char)
+            time.sleep(0.1)
         time.sleep(1)
         input_password.send_keys(Keys.ENTER)
         time.sleep(3)
@@ -53,10 +65,24 @@ def auth_process(queue, account_id):
         code = get_2fa_code(account['twoFactorAuthCode'])
 
         input_code = driver.find_element(By.XPATH, '//input[@type="text"]')
-        input_code.send_keys(code)
+        for char in code:
+            input_code.send_keys(char)
+            time.sleep(0.1)
         time.sleep(1)
         input_code.send_keys(Keys.ENTER)
-        time.sleep(3)
+        time.sleep(5)
+
+        if "Your account has been locked." in driver.page_source:
+            print("Account locked")
+            driver.find_element(By.XPATH, '//input[@type="submit"]')\
+                .click()
+            time.sleep(300)
+            print("Clicked Start")
+
+            driver.find_element(By.XPATH, '//input[@type="submit"]')\
+                .click()
+
+        time.sleep(300)
         print("Entered 2FA code successfully")
         cookies = driver.get_cookies()
         account_config['fullCookies'] = cookies
@@ -68,30 +94,31 @@ def auth_process(queue, account_id):
         account_config['cookies'] = parsed_cookies
         db['accountconfigs'].update_one({'_id': account_config['_id']}, {"$set": account_config})
         result = "Authenticated"  # This should be the result of the auth logic
-        queue.put(result)
+        shared_dict['result'] = "Authenticated"
+    except WebDriverException as e:
+        print(f"WebDriver error: {e}")
+        shared_dict['result'] = f"WebDriver error: {e}"
     except Exception as e:
         print("Error authenticating:", str(e))
-        queue.put(f"Error authenticating auth_process: {str(e)}\n{traceback.format_exc()}")
+        shared_dict['result'] = f"Error authenticating auth_process: {str(e)}\n{traceback.format_exc()}"
     finally:
-        driver.close()
-        driver.quit()
-        return "Authenticated"
+        if driver:
+            try:
+                driver.close()
+            except Exception as e:  # Catching a broader exception if WebDriverException is not enough
+                print(f"Failed to close WebDriver properly: {e}")
 
 
 def auth(account_id):
     try:
-        queue = Queue()
-        print("Step 1")
-        process = Process(target=auth_process, args=(queue, account_id))
-        print("Step 2")
-        process.start()
-        print("Step 3")
-        process.join()  # Wait for the process to finish
-        print("Step 4")
-        result = queue.get()  # Get the result from the process
-        print("Step 5")
+        with Manager() as manager:
+            shared_dict = manager.dict()
+            process = Process(target=auth_process, args=(shared_dict, account_id))
+            process.start()
+            process.join()  # Wait for the process to finish
 
-        return result
+            result = shared_dict.get('result', "Process did not return a result")
+            return result
     except Exception as e:
-        print("Error authenticating auth:", str(e))
+        print("Error in auth function:", str(e))
         raise e

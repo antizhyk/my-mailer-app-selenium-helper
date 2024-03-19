@@ -1,0 +1,59 @@
+[0312/153446.732656:INFO:policy_logger.cc(145)] :components/policy/core/common/config_dir_policy_loader.cc(118) Skipping mandatory platform policies because no policy file was found at: /etc/opt/chrome/policies/managed
+[0312/153446.732731:INFO:policy_logger.cc(145)] :components/policy/core/common/config_dir_policy_loader.cc(118) Skipping recommended platform policies because no policy file was found at: /etc/opt/chrome/policies/recommended
+[0312/153446.753376:WARNING:bluez_dbus_manager.cc(248)] Floss manager not present, cannot set Floss enable/disable.
+[0312/153447.578949:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for twitter.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153448.733985:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for abs.twimg.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153448.736432:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for abs.twimg.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153448.737271:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for abs.twimg.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153452.884697:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for accounts.google.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153453.389901:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for api.twitter.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153453.913451:INFO:CONSOLE(49)] "[GSI_LOGGER]: Your client application uses one of the Google One Tap prompt UI status methods that may stop functioning when FedCM becomes mandatory. Refer to the migration guide to update your code accordingly and opt-in to FedCM to test your changes. Learn more: https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#display_moment and https://developers.google.com/identity/gsi/web/guides/fedcm-migration?s=dc#skipped_moment", source: https://accounts.google.com/gsi/client (49)
+[0312/153454.379447:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for api.twitter.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153455.623446:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for www.google-analytics.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153457.436143:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for appleid.cdn-apple.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153457.970142:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for fonts.gstatic.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+
+[0312/153528.232085:ERROR:cert_verify_proc_builtin.cc(874)] CertVerifyProcBuiltin for play.google.com failed:
+----- Certificate i=1 (CN=Selenium Wire CA) -----
+ERROR: No matching issuer found
+
+

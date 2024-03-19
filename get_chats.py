@@ -21,8 +21,8 @@ def get_chats(account_id: str):
             agent = account_config['userAgent']
         else:
             agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.5993.71 Safari/537.36"
-        with open('cookies.json', 'r') as f:
-            cookies_data = json.load(f)
+        # with open('cookies.json', 'r') as f:
+        #     cookies_data = json.load(f)
         driver = create_driver(proxy_url, agent)
         # https://twitter.com/404
 

@@ -2,13 +2,16 @@ import gzip
 import json
 import time
 import os
+
+import brotli
 from bson import ObjectId
 from selenium.common import NoSuchElementException, WebDriverException
 
 from check_auth import check_auth
-from cookies_conversion import driver_cookie_conversion
+from multiprocessing import Process, Manager
 from db import db
 from groups.save_group_in_db import save_groups_in_db
+from parse_cookies import parse_cookies
 from selenium_logic import create_driver
 
 
@@ -97,6 +100,17 @@ def decode_response_body(body):
             raise Exception("Could not decode response body.")
 
 
+def extract_pinned_conversations_from_body(decoded_body):
+    try:
+        body_json = json.loads(decoded_body)
+        filtered_conversations = []
+        conversations = body_json.get('data', {}).get('labeled_conversation_slice', {}).get('items')
+        print("Conversations:", conversations)
+
+    except json.JSONDecodeError as e:
+        print("Error parsing JSON:", str(e))
+        raise e
+
 def extract_conversations_from_body(decoded_body):
     try:
         body_json = json.loads(decoded_body)
@@ -120,16 +134,16 @@ def extract_conversations_from_body(decoded_body):
         raise e
 
 
-def get_messages(account_id):
+def get_messages_process(shared_dict, account_id):
     driver = None
     try:
 
         account = db['accounts'].find_one({'_id': ObjectId(account_id)})
 
         account_config = db['accountconfigs'].find_one({'_id': ObjectId(account["accountConfig"])})
-        cookies_from_db = account_config['fullCookies']
-        parsed_cookies = driver_cookie_conversion(cookies_from_db)
-        print("Parsed cookies:", parsed_cookies)
+        cookies_from_db = parse_cookies(list(account_config['fullCookies']))
+        # parsed_cookies = driver_cookie_conversion(cookies_from_db)
+        # print("Parsed cookies:", parsed_cookies)
         proxy_url = None
         if 'proxy' in account and account['proxy'] is not None:
             proxy = db['proxies'].find_one({'_id': ObjectId(account["proxy"])})
@@ -143,11 +157,16 @@ def get_messages(account_id):
         driver = create_driver(proxy_url, agent)
 
         driver.get("https://twitter.com")
-
-        for cookie in parsed_cookies:
-            driver.add_cookie(cookie)
-
-        driver.get("https://twitter.com/messages")
+        try:
+            print("Opened Twitter", cookies_from_db)
+            for cookie in cookies_from_db:
+                print("Adding cookie:", cookie)
+                driver.add_cookie(cookie)
+            print("Added cookies")
+            driver.get("https://twitter.com/messages")
+        except Exception as e:
+            print("Error adding cookies:", str(e))
+            raise e
         time.sleep(30)  # This is a simple wait, you might want to use WebDriverWait for better results
         is_auth = check_auth(driver, "https://twitter.com/messages")
 
@@ -161,8 +180,10 @@ def get_messages(account_id):
                 if "dm/user_updates.json" in request.url or "dm/inbox_initial_state.json" in request.url:
                     print("Request URL:", request.url)
                     body = request.response.body
+                    print(f"Response body type: {type(body)}, snippet: {str(body)[:100]}")
                     try:
                         decoded_body = decode_response_body(body)
+                        print(f"Decoded body snippet: {decoded_body[:100]}")
                         conversations = extract_conversations_from_body(decoded_body)
                         if conversations:
                             print("Filtered GROUP_DM Conversations found:")
@@ -174,6 +195,44 @@ def get_messages(account_id):
                     except Exception as e:
                         print("Error processing response body:", str(e))
                         raise e
+                if "DMPinnedInboxQuery" in request.url:
+                    print("Request URL:", request.url)
+                    print("Response status code:", request.response)
+                    body = request.response.body
+
+                    try:
+                        if request.response.headers.get('Content-Encoding') == 'br' and body is not None:
+                            decompressed_data = brotli.decompress(body)
+                            # Decode the decompressed bytes as UTF-8
+                            decoded_response = decompressed_data.decode('utf-8')
+                            # Parse the JSON data
+                            json_data = json.loads(decoded_response)
+                            # Now you can work with the JSON data
+                            print(f"Response body type: {type(body)}, snippet: {str(body)[:100]}")
+                            if 'data' in json_data and 'labeled_conversation_slice' in json_data['data'] and 'items' in json_data['data']['labeled_conversation_slice']:
+                                print("Decoding body")
+                                decoded_body = json_data
+                                print(f"Decoded ssss")
+                                # conversations = extract_pinned_conversations_from_body(decoded_body)
+                                items = decoded_body['data']['labeled_conversation_slice']['items']
+                                parsed_items = []
+                                for item in items:
+                                    legacy = item['legacy']
+
+                                    legacy_item = {
+                                        'conversation_id': legacy['conversation_id'],
+                                        'name': legacy['metadata']['name'],
+                                        'participants': legacy['participants_metadata']
+                                    }
+
+                                    parsed_items.append(legacy_item)
+
+                                print(f"Items: {parsed_items}")
+                                save_conversations_to_file(parsed_items, account_id)
+                    except Exception as e:
+                        print("Error processing response body:", str(e))
+                        raise e
+
         last_height = driver.execute_script("return document.body.scrollHeight")
 
         while True:
@@ -182,8 +241,10 @@ def get_messages(account_id):
                     if "dm/user_updates.json" in request.url or "dm/inbox_initial_state.json" in request.url:
                         print("Request URL:", request.url)
                         body = request.response.body
+                        print(f"Response body type: {type(body)}, snippet: {str(body)[:100]}")
                         try:
                             decoded_body = decode_response_body(body)
+                            print(f"Decoded body snippet: {decoded_body[:100]}")
                             conversations = extract_conversations_from_body(decoded_body)
                             if conversations:
                                 print("Filtered GROUP_DM Conversations found:")
@@ -209,22 +270,43 @@ def get_messages(account_id):
         # Call the function to remove duplicates
         remove_duplicate_conversations(account_id)
         save_groups_in_db(account_id)
+        # remove the file
+        file_path = f'conversations_{account_id}.json'
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        shared_dict['result'] = "Messages retrieved"
     except json.JSONDecodeError as e:
         print("JSON format error in cookies.json:", str(e))
         with open('cookies.json', 'r') as f:
             print("Content of cookies.json:", f.read())
-        raise e
+        shared_dict['result'] = f"JSON format error in cookies.json: {str(e)}"
     except NoSuchElementException as e:
         print("Container not found:", str(e))
-        raise e
+        shared_dict['result'] = f"Container not found: {str(e)}"
     except WebDriverException as e:
         print("WebDriver error:", str(e))
-        raise e
+        shared_dict['result'] = f"WebDriver error: {str(e)}"
     except Exception as e:
         print("Error getting messages:", str(e))
-        raise e
+        shared_dict['result'] = f"Error get_messages_process: {str(e)}"
     finally:
-        # Close the browser at the end of execution
         if driver:
-            driver.quit()
-        return "Messages retrieved"
+            try:
+                driver.close()
+            except Exception as e:  # Catching a broader exception if WebDriverException is not enough
+                print(f"Failed to close WebDriver properly: {e}")
+
+
+def get_messages(account_id):
+    try:
+        with Manager() as manager:
+            shared_dict = manager.dict()
+            process = Process(target=get_messages_process, args=(shared_dict, account_id))
+            process.start()
+            process.join()  # Wait for the process to finish
+
+            result = shared_dict.get('result', "Process did not return a result")
+            return result
+    except Exception as e:
+        print("Error in get_messages function:", str(e))
+        raise e
